@@ -1,0 +1,209 @@
+---
+title: "IFOA - eXplainable AI Workstream - SHAP"
+autor: Karol Gawlowski
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(caret) # one hot encoding
+library(DALEX) # largest standalone XAI library I know
+library(shapper) #extension to DALEX, essentially an API for py SHAP
+library(reticulate)
+
+seed=2
+set.seed(seed)
+
+library(tensorflow)
+library(keras)
+
+use_condaenv(condaenv = "TEST_ENV2",required = T) # 
+set_random_seed(seed, disable_gpu = FALSE)
+# py_module_available("tensorflow")
+# is_keras_available()
+
+py_config()
+
+library(skimr)
+library(xgboost)
+
+eval_list = list()
+
+# raw data, processed data, utility functions, XGB, GLM
+load(file = "Prep_RMD/XAI_data.rda")
+
+# Keras NN
+model1 <- load_model_tf("models/model2")
+
+```
+
+
+## 0. Intro to case study
+### 0.1 intro
+
+##### text
+
+### 0.2 evaluation functions - other scripts
+
+##### text
+
+## 1. Intro to dataset
+
+#### source etc
+
+#### 1.1 Basic summary statistics 
+
+```{r, echo=FALSE}
+
+head(data)
+skim(data)
+
+```
+
+### 1.2 EDA
+
+##### text
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+data %>% 
+  group_by(DrivAge,Area) %>% 
+  summarise(Freq = mean(ClaimNb)) %>% 
+  ggplot(aes(x = DrivAge, y=Freq))+
+  facet_wrap(~Area)+
+  geom_point()+
+  ggtitle("Claim frequency by driver age and region")+
+  xlab("Driver Age")+
+  ylab("")+
+  theme_minimal()+
+  theme(text=element_text(family="serif"), # Cambria Math
+        plot.title = element_text(hjust = 0.5,face = "bold"))
+
+```
+
+##### text
+
+```{r}
+
+
+
+```
+
+
+## 2. models - fitting, output comparison
+
+### 2.1 NN
+
+```{r, echo=FALSE}
+
+summary(model1)
+
+eval_list$model1 = model_evalulation(model1,
+                                     cbind(test,data[-sample_TTS,"ClaimNb"]),
+                                     type = "NN")
+
+```
+
+#### text
+
+```{r, echo=FALSE}
+
+eval_list$model1$Evaluation
+
+```
+
+#### text
+
+```{r, echo=FALSE}
+
+eval_list$model1$AvE
+
+```
+
+### 2.2 XGB
+
+```{r, echo=FALSE}
+
+eval_list$xgb5 = model_evalulation(model = m5_xgb,
+                                   data = data.frame(test, ClaimNb = data[-sample_TTS,"ClaimNb"]),
+                                   type = "XGB")
+
+```
+
+#### text
+
+```{r, echo=FALSE}
+
+eval_list$xgb5$Evaluation
+
+```
+
+#### text
+
+```{r, echo=FALSE}
+
+eval_list$xgb5$AvE
+
+```
+
+### 2.3 GLM
+
+```{r, echo=FALSE}
+
+eval_list$PoissonGLM = model_evalulation(model = PoissonGLM$model,
+                                         data = data[-sample_TTS,],
+                                         type = "GLM")
+
+summary(PoissonGLM)
+
+
+```
+
+#### text
+
+```{r, echo=FALSE}
+
+eval_list$PoissonGLM$Evaluation
+
+```
+
+#### text
+
+```{r, echo=FALSE}
+
+eval_list$PoissonGLM$AvE
+
+```
+
+
+### 2.4 Model comparison
+
+```{r, echo=FALSE}
+
+eval_list$PoissonGLM$AvE
+
+```
+
+
+## 3. XAI
+
+
+### 3.1 Individual SHAP
+
+```{r}
+
+
+
+```
+
+### 3.2 Model - level SHAP
+
+```{r}
+
+
+
+```
+
