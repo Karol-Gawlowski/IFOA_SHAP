@@ -20,6 +20,8 @@ set.seed(seed)
 library(tensorflow)
 library(keras)
 
+?use_condaenv()
+
 use_condaenv(condaenv = "TEST_ENV2",required = T) # 
 set_random_seed(seed, disable_gpu = FALSE)
 # py_module_available("tensorflow")
@@ -39,6 +41,12 @@ load(file = "Prep_RMD/XAI_data.rda")
 model1 <- load_model_tf("models/model2")
 
 ```
+
+
+# Table of Contents
+1. [Example](#example)
+2. [Example2](#example2)
+3. [Third Example](#third-example)
 
 
 ## 0. Intro to case study
@@ -84,7 +92,7 @@ data %>%
 
 ```
 
-##### text
+### text
 
 ```{r}
 
@@ -96,6 +104,18 @@ data %>%
 ## 2. models - fitting, output comparison
 
 ### 2.1 NN
+
+#### text
+
+```{r}
+
+if(FALSE){
+  
+}
+
+
+```
+
 
 ```{r, echo=FALSE}
 
@@ -125,6 +145,15 @@ eval_list$model1$AvE
 
 ### 2.2 XGB
 
+#### text
+
+```{r}
+
+
+
+```
+
+
 ```{r, echo=FALSE}
 
 eval_list$xgb5 = model_evalulation(model = m5_xgb,
@@ -151,13 +180,22 @@ eval_list$xgb5$AvE
 
 ### 2.3 GLM
 
+#### text
+
+```{r}
+
+
+
+```
+
+
 ```{r, echo=FALSE}
-
-eval_list$PoissonGLM = model_evalulation(model = PoissonGLM$model,
-                                         data = data[-sample_TTS,],
-                                         type = "GLM")
-
-summary(PoissonGLM)
+# 
+# eval_list$PoissonGLM = model_evalulation(model = PoissonGLM$model,
+#                                          data = data[-sample_TTS,],
+#                                          type = "GLM")
+# 
+# summary(PoissonGLM)
 
 
 ```
@@ -166,7 +204,7 @@ summary(PoissonGLM)
 
 ```{r, echo=FALSE}
 
-eval_list$PoissonGLM$Evaluation
+# eval_list$PoissonGLM$Evaluation
 
 ```
 
@@ -174,7 +212,7 @@ eval_list$PoissonGLM$Evaluation
 
 ```{r, echo=FALSE}
 
-eval_list$PoissonGLM$AvE
+# eval_list$PoissonGLM$AvE
 
 ```
 
@@ -200,6 +238,27 @@ eval_list$PoissonGLM$AvE
 ```
 
 ### 3.2 Model - level SHAP
+
+```{r}
+
+
+
+```
+
+
+
+## 4. Utility functions
+
+
+### 4.1 Text
+
+```{r}
+
+
+
+```
+
+### 4.2 Text
 
 ```{r}
 
