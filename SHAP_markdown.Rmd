@@ -319,11 +319,15 @@ knitr::kable(eval_list$GLM$AvE)
 \newpage
 ## 3. XAI
 
+Note that the current implementation of SHAP is insensitive to One-Hot Encoding, meaning that explanation of an instance might contain a non-zero contribution for both VehGas=Diesel AND VehGas!=Regular at the same time. This is caused by the lack of interface in the SHAP function to indicate the range of OHE variables. This and other issues will be fixed in my implementation of Kernel-SHAP, purely in R - to be published soon. 
+
+Currently to apply SHAP in  R, one has to access a Python environment (through reticulate package) that has SHAP package installed. Here, DALEX package is used as a wrapper for SHAP. 
+
+For the full code producing graphs below go to: scripts/Prep_SHAP_Graphs.R, where you will find a wrapper for the original plotting function, to allow for selecting only the most significant variables. It will prove helpful in case the models use a large number of variables and/or including OHE.
 
 ### 3.1 Model - level SHAP
-The graphs are printed from .png as it takes time to run SHAP on three models. 
 
-To calculate the SHAP values, DALEX and SHAP py package are used. The code below is an example of how to call them appropriate functions in R. Here we estimate the SHAP values on a 1000 observations subset (sample size to )
+The code below is an example of how to call DALEX and SHAP in R. Here we estimate the SHAP values on a subset of 1000 observations. SHAP for the XGB and GLM are produced analogously.
 
 ```{r}
 
@@ -354,17 +358,26 @@ if(FALSE){
 
 ### 3.2 Individual SHAP
 
+
 #### Neural Network
 Individual SHAP value plots for observations:
 * with 1 claim and low error for NN;
 * an instance with 0 claims and very high error
 * An instance with 2 claims 
 
-![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
+For this observation ClaimNb = 1, we can see (as in most cases) that the BonusMalus variable along with vehicle age and brand/gas type have the most impact on the final prediction.
 
-![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png)
+![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png){width = 75%}
 
-![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
+
+This instance, in reality has ClaimNb of 0 and Networks prediction for it, has the highest error from all observations with actual ClaimNb=1. Interestingly, if it wasn't for the BonusMalus value in case of this instance, the model could have output a much lower prediction. This could be confirmed using an ICE (Individual Conditional Expectation) plot for this observation.  
+
+![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png){width = 75%}
+
+In case of this observation, the actual number of claims=2, and here again BonusMalus plays a siginficant role in the final prediction.
+
+![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png){width = 75%}
+
 
 #### XGB
 Individual SHAP value plots for observations:
@@ -372,11 +385,11 @@ Individual SHAP value plots for observations:
 * an instance with 0 claims and very high error
 * An instance with 2 claims 
 
-![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
+![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png){width = 75%}
 
-![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png)
+![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png){width = 75%}
 
-![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
+![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png){width = 75%}
 
 #### GLM
 Individual SHAP value plots for observations:
@@ -384,11 +397,11 @@ Individual SHAP value plots for observations:
 * an instance with 0 claims and very high error
 * An instance with 2 claims 
 
-![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
+![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png){width = 75%}
 
-![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png)
+![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png){width = 75%}
 
-![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
+![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png){width = 75%}
 
 
 
