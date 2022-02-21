@@ -1,3 +1,10 @@
+EDA = list()
+EDA$head = head(data)
+EDA$skim = skim(data)
+save(EDA,file = "models/EDA.rda")
+
+
+# Poisson Deviance Loss
 PDL = data.frame(predicted = 0:50,
            actual = 20) %>% 
   mutate(PDL = actual*log(actual / predicted) - (actual - predicted)) %>% 
@@ -17,4 +24,25 @@ ggsave(plot = PDL,
        filename = "Poisson_Deviance_Loss.png",
        device = "png")
 
-save(eval_list,file = "models/eval_list.rda")
+# EDA
+EDA = data %>% 
+  group_by(DrivAge,Area) %>% 
+  summarise(Freq = mean(ClaimNb),
+            BonusMalus = mean(BonusMalus)) %>% 
+  ggplot(aes(x = DrivAge, y=Freq, color = BonusMalus))+
+  facet_wrap(~Area)+
+  geom_point()+
+  ggtitle("Claim frequency by driver age and region")+
+  xlab("Driver Age")+
+  ylab("")+
+  theme_light()+
+  theme(text=element_text(family="serif"),
+        legend.justification = c("right", "top"))
+
+
+ggsave(plot = EDA,
+       path = "graphs", 
+       filename = "EDA.png",
+       device = "png")
+
+

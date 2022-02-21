@@ -10,63 +10,14 @@ output:
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
-
-# ---
-# title: "IFOA - eXplainable AI Workstream - SHAP"
-# autor: Karol Gawlowski
-# output:
-#   pdf_document:
-#       df_print: kable
-#       latex_engine: xelatex
-# classoption: landscape
-# ---
-
-
-
-# ---
-# title: "IFOA - eXplainable AI Workstream - SHAP"
-# autor: Karol Gawlowski
-# output:
-#   html_document:
-#     df_print: paged
-# ---
-
-
-# to render html from github
-# https://htmlpreview.github.io/?https://github.com/Karol-Gawlowski/IFOA_SHAP/blob/main/SHAP_markdown.html
-
-
-library(tidyverse)
-library(caret) # one hot encoding
-library(DALEX) # largest standalone XAI library I know
-library(shapper) #extension to DALEX, essentially an API for py SHAP
-library(reticulate)
-
-seed=2
-set.seed(seed)
-
-library(tensorflow)
-library(keras)
-
-use_condaenv(condaenv = "TEST_ENV2",required = T) # 
-set_random_seed(seed, disable_gpu = FALSE)
-# py_module_available("tensorflow")
-# is_keras_available()
-
-# py_config()
-
-library(skimr)
-library(xgboost)
-
-eval_list = list()
-
-# raw data, processed data, utility functions, XGB, GLM
-# load(file = "Prep_RMD/XAI_data.rda")
+source("scripts/init.R")
 
 # Load models and objects
 Neural_Net = load_model_tf("models/Neural_Net")
 # load("models/GLM")
 load("models/eval_list.rda")
+load("models/EDA.rda")
+
 
 ```
 
@@ -78,19 +29,7 @@ load("models/eval_list.rda")
 # [1.1 Basic summary statistics](1.1 Basic summary statistics)
 # 3. [Third Example](#third-example)
 
-# fix glm upload from load() function or fit it explicitly in the markdown?
-# is that the best xgb we can fit? poisson loss in xgb?
-# finish fixing the SHAP wrapper for the top contributing variables
-# make a disclaimer / promo of the SHAPcor in development alleviating correlated variables and OHE
-# add a note/link to render the HTML version instead of .pdf
-
-# 
 # Notes: Rebuild the NN and XGB models using the same validation split. 
-# Refine the XGB, 
-# Further tweak the NN
-# Make the train/test split less awkward
-
-# model evaluation function to use Poisson loss instead of MSE
 
 
 ```
@@ -129,42 +68,70 @@ Originally it was accessible through [CASdatasets](http://cas.uqam.ca/pub/web/CA
 **Region** The policy region in France (based on the 1970-2015 classification) 
 
 \newpage
-#### 1.3 Basic summary statistics
+#### 1.3 Preprocessing and Basic summary statistics
 
-```{r, echo=FALSE}
+```{r}
 
-head(data)
-skim(data)
+if(FALSE){
+  data_input = read.csv2("data/freMTPL2freq.csv",sep = ",") %>% 
+    as_tibble() %>%
+    mutate(VehPower  = factor(VehPower, order = TRUE,levels = 4:15),
+           across(c(Area,Region,VehBrand,VehGas),factor)) %>%
+    rowwise() %>% 
+    mutate(ClaimNb = as.integer(min(ClaimNb,4)),
+           VehAge = as.integer(min(VehAge,20)),
+           DrivAge = as.integer(min(DrivAge,90)),
+           Exposure = as.numeric(min(Exposure,1)), 
+           Density = log(Density)) %>% 
+    ungroup()
+}
+
 
 ```
 
+
+```{r, echo=FALSE}
+
+knitr::kable(EDA$head)
+
+```
+
+
+```{r, echo=FALSE}
+
+# knitr::kable(EDA$skim)
+
+```
+
+
+```{r, echo=FALSE}
+
+sample_TTS = sample(x = 1:nrow(data_input),size = round(0.85 * nrow(data_input)),replace = FALSE)
+
+```
+
+
 ### 1.4 EDA
 
+```{r}
 
-```{r,message=FALSE, warning=FALSE}
-# ```{r, echo=FALSE, message=FALSE, warning=FALSE}
-
-data %>% 
+data_input %>% 
   group_by(DrivAge,Area) %>% 
-  summarise(Freq = mean(ClaimNb)) %>% 
-  ggplot(aes(x = DrivAge, y=Freq))+
+  summarise(Freq = mean(ClaimNb),
+            BonusMalus = mean(BonusMalus)) %>% 
+  ggplot(aes(x = DrivAge, y=Freq, color = BonusMalus))+
   facet_wrap(~Area)+
   geom_point()+
   ggtitle("Claim frequency by driver age and region")+
   xlab("Driver Age")+
   ylab("")+
-  theme_minimal()+
-  theme(text=element_text(family="serif"), # Cambria Math
-        plot.title = element_text(hjust = 0.5,face = "bold"))
-
-```
-
-
-```{r}
-
+  theme_light()+
+  theme(text=element_text(family="serif"),
+        legend.justification = c("right", "top"))
 
 
 ```
+
 
 
 ## 2. models - fitting, output comparison
@@ -172,9 +139,8 @@ In this section we build the three models (NN, XGB, GLM) and assess their perfor
 
 We examine the models' outputs using a hold out test dataset and applying a custom model_evalulation function. It lets us view: the obtained MSE or Poisson loss; prediction statistics grouped by the actual claim number and raw predictions. model_evalulation is standardized to accept all three of the models considered in the exercise. Further details alNong with the source code can be found in section 4.1 \
 
-Poisson deviance loss is not symmetrical around the actual value we compare the prediction against. It puts more emphasis on differentiating between zero and non-zero claims instances than say observations with 1 and 2 claims. 
+Poisson deviance loss is not symmetrical around the actual value we compare the prediction against. It puts more emphasis on differentiating between zero and non-zero claims instances than say observations with 1 and 2 claims (see 4. Additional Information). 
 
-![Poisson Deviance Loss](graphs/Poisson_Deviance_Loss.png)
 
 ### 2.1 NN
 
@@ -226,7 +192,7 @@ summary(Neural_Net)
 
 ```{r}
 
-eval_list$Neural_Net$Evaluation
+knitr::kable(eval_list$Neural_Net$Evaluation)
 
 ```
 
@@ -234,7 +200,7 @@ eval_list$Neural_Net$Evaluation
 
 ```{r}
 
-eval_list$Neural_Net$AvE
+knitr::kable(eval_list$Neural_Net$AvE)
 
 ```
 
@@ -277,10 +243,10 @@ if(FALSE){
       watchlist = watchlist
     )  
   
-eval_list$xgb5 = model_evalulation(model = m5_xgb,
-                                   data = data.frame(test,
-                                                     ClaimNb = data[-sample_TTS,"ClaimNb"]),
-                                   type = "XGB")
+# eval_list$xgb5 = model_evalulation(model = m5_xgb,
+#                                    data = data.frame(test,
+#                                                      ClaimNb = data[-sample_TTS,"ClaimNb"]),
+#                                    type = "XGB")
 
 }
 
@@ -305,20 +271,20 @@ eval_list$xgb5 = model_evalulation(model = m5_xgb,
 
 ### 2.3 GLM
 
-#### text
+#### Model fitting
 
-```{r}
+```{r, message=FALSE}
 
 if(TRUE){
   
   GLM = glm(formula = ClaimNb/Exposure ~ Area + VehPower + VehAge + DrivAge + BonusMalus + VehBrand + VehGas + Density + Region,
             family = poisson(link = log),
             weights = Exposure,
-            data = data_input[sample_TTS,] %>% select(-IDpol))
+            data = data_input[sample_TTS,] %>% select(-IDpol))  %>% suppressWarnings()
   
-  eval_list$GLM = model_evalulation(GLM,
-                                    data_input[-sample_TTS,],
-                                    type = "GLM")
+  # eval_list$GLM = model_evalulation(GLM,
+  #                                   data_input[-sample_TTS,],
+  #                                   type = "GLM")
 }
 
 GLM
@@ -326,9 +292,10 @@ GLM
 ```
 
 #### Evaluation
+
 ```{r}
 
-eval_list$GLM$Evaluation
+knitr::kable(eval_list$GLM$Evaluation)
 
 ```
 
@@ -336,7 +303,7 @@ eval_list$GLM$Evaluation
 
 ```{r}
 
-eval_list$GLM$AvE
+knitr::kable(eval_list$GLM$AvE)
 
 ```
 
@@ -399,7 +366,7 @@ Individual SHAP value plots for observations:
 
 ![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
 
-#### Neural Network
+#### XGB
 Individual SHAP value plots for observations:
 * with 1 claim and low error for NN;
 * an instance with 0 claims and very high error
@@ -411,7 +378,7 @@ Individual SHAP value plots for observations:
 
 ![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
 
-#### Neural Network
+#### GLM
 Individual SHAP value plots for observations:
 * with 1 claim and low error for NN;
 * an instance with 0 claims and very high error
@@ -500,7 +467,8 @@ if (FALSE){
     
     
     Sorted_by_MSE = data %>% mutate(Predictions = Predictions$Predicted,
-                                    SquaredError = (Predictions - ClaimNb)^2) %>% arrange(-SquaredError)
+                                    SquaredError = (Predictions - ClaimNb)^2) %>% 
+      arrange(-SquaredError)
     
     return(list(Evaluation = Evaluation,
                 Predictions = Predictions,
@@ -590,7 +558,9 @@ if (FALSE){
   CustomSHAPplot=function(dalex_output,
                           epsilon = 0.007){
     
-    colnames(dalex_output) = str_replace_all(colnames(dalex_output),pattern = "_",replacement = "")
+    colnames(dalex_output) = str_replace_all(colnames(dalex_output),
+                                             pattern = "_",
+                                             replacement = "")
     
     dalex_output = dalex_output %>% as_tibble()
     
@@ -629,13 +599,36 @@ if (FALSE){
 
 ```
 
-### 4.3 Session  information
+### 4.4 Poisson Deviance Loss
+
+```{r}
+
+data.frame(predicted = 0:50,
+           actual = 20) %>% 
+  mutate(PDL = actual*log(actual / predicted) - (actual - predicted)) %>% 
+  ggplot(aes(x = predicted, y = PDL))+
+  geom_line(size = 1)+
+  ggtitle("Poisson Deviance Loss function",
+          subtitle = "20 - actual observation")+
+  xlab("Model Prediction")+
+  ylab("Poisson Deviance Loss")+
+  theme_light()+
+  theme(text=element_text(family="serif"),
+        legend.justification = c("right", "top"))
+
+
+```
+
+### 4.5 Session  information
 Hardware, R and Python configuration 
 
 ```{r}
 
 sessionInfo()
 
-py_config()
-
 ```
+
+Py:
+version: 3.8.5 (default, Sep 3 2020, 21:29:08) [MSC v.1916 64 bit (AMD64)]
+Architecture: 64bit
+numpy_version: 1.19.2

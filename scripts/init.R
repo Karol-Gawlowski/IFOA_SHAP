@@ -17,6 +17,7 @@ is_keras_available()
 
 py_config()
 
+library(skimr)
 library(xgboost)
 
 # object to store results
@@ -197,4 +198,6 @@ CustomSHAPplot=function(dalex_output,
   
   return(plt)
 }
+
+
 
