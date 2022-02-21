@@ -28,7 +28,7 @@ load("models/EDA.rda")
 # [1.1 Basic summary statistics](1.1 Basic summary statistics)
 # 3. [Third Example](#third-example)
 
-# Notes: Rebuild the NN and XGB models using the same validation split. 
+# Notes: Rebuild  XGB  using the same validation split. 
 
 
 ```
@@ -37,8 +37,7 @@ load("models/EDA.rda")
 ## 1. Intro to case study
 
 ## 1.1 Motivation
-The aim of this document is to supply the reader of [name of the article](https://www.theactuary.com/issues/2022/03/march-2022) in The Actuary Magazine, with a practical, comprehensive example of applying SHAP to explain models' predictions. [K. Gawlowski](karol.gawlowski@bayes.city.ac.uk), D. Liew and C. Richard. 
-
+The aim of this document is to supply the reader of __[All Clear]__(https://www.theactuary.com/issues/2022/03/march-2022) in The Actuary Magazine, with a practical, comprehensive example of applying SHAP to explain models' predictions. 
 
 
 ## 1.2 Intro to dataset
@@ -67,6 +66,7 @@ Originally it was accessible through [CASdatasets](http://cas.uqam.ca/pub/web/CA
 **Region** The policy region in France (based on the 1970-2015 classification) 
 
 \newpage
+
 #### 1.3 Preprocessing and Basic summary statistics
 
 ```{r}
@@ -135,10 +135,10 @@ data_input %>%
 
 \newpage
 
-## 2. models - fitting, output comparison
+## 2. Models - fitting, output comparison
 In this section we build three models - a Neural Network, Gradient Boosted Trees (XGBoost), and a Poisson GLM. 
 
-We examine the models' outputs using a hold out test dataset (15% of available observations) and applying a model_evalulation function for further statistics. It lets us view: the obtained loss (MSE, MAE, Poisson Deviance); prediction statistics grouped by the actual claim number and raw predictions. Further details on model_evaluation function along with the source code can be found in section 4.1 \
+We examine the models' outputs using a hold out test dataset (15% of available observations) and applying a model_evalulation function for additional statistics. The function lets us view: the obtained loss (MSE, MAE, Poisson Deviance); prediction statistics grouped by the actual claim number and raw predictions and more. Further details on model_evaluation function along with the source code can be found in section 4.1 \
 
 Note:
 Poisson deviance loss is not symmetrical around the actual value we compare the prediction against (in contrast to e.g. MSE and MAE). It puts more emphasis on differentiating between zero and non-zero claim instances than say observations with 1 and 2 claims (see 4.4 for additional information). 
@@ -177,13 +177,10 @@ Neural_Net %>%
     sample_weight = data_input$Exposure[sample_TTS] %>% as.matrix() 
   )
 
-
 eval_list$Neural_Net = model_evalulation(Neural_Net,
                                      cbind(test,data[-sample_TTS,"ClaimNb"]),
                                      type = "NN",
                                      ClaimNBadj = FALSE)
-
-
 }
 
 summary(Neural_Net)
@@ -259,26 +256,28 @@ GLM
 
 ```
 
+\newpage
 
 ### 2.4 Model comparison
+Here we examine the model_evalulation outputs, starting with basic loss functions and then turning to more in-depth view and predictions statistics.
 
 #### 2.4.1 Loss Metrics
 
 Neural Network
 
-```{r}
+```{r, echo=FALSE}
 eval_list$Neural_Net$Evaluation
 ```
 
 XGB
 
-```{r}
+```{r, echo=FALSE}
 # eval_list$XGB$Evaluation
 ```
 
 GLM
 
-```{r}
+```{r, echo=FALSE}
 eval_list$GLM$Evaluation
 ```
 
@@ -288,19 +287,19 @@ As an alternative to comparing the loss metrics, we can assess the models perfor
 
 Neural Network
 
-```{r}
+```{r, echo=FALSE}
 eval_list$Neural_Net$AvE %>% select(-Negative_Pred,-IQR) %>% mutate_if(Negate(is.factor),round,digits=3)
 ```
 
 XGB
 
-```{r}
+```{r, echo=FALSE}
 # eval_list$XGB$AvE %>% select(-Negative_Pred,-IQR) %>% mutate_if(Negate(is.factor),round,digits=3)
 ```
 
 GLM
 
-```{r}
+```{r, echo=FALSE}
 eval_list$GLM$AvE %>% select(-Negative_Pred,-IQR) %>% mutate_if(Negate(is.factor),round,digits=3)
 ```
 
@@ -308,9 +307,9 @@ eval_list$GLM$AvE %>% select(-Negative_Pred,-IQR) %>% mutate_if(Negate(is.factor
 
 ## 3. XAI
 
-Note that the current implementation of SHAP is insensitive to One-Hot Encoding, meaning that explanation of an instance might contain a non-zero contribution for both VehGas=Diesel AND VehGas!=Regular at the same time. This is caused by the lack of interface in the SHAP function to indicate the range of OHE variables. This and other issues will be fixed in my implementation of Kernel-SHAP, purely in R - to be published soon. 
+Note that the current implementation of SHAP is insensitive to One-Hot Encoding, meaning that explanation of an instance might contain a non-zero contribution for both VehGas=Diesel AND VehGas!=Regular at the same time. This is caused by the lack of interface in the SHAP function to indicate the range of OHE variables. 
 
-Currently to apply SHAP in  R, one has to access a Python environment (through reticulate package) that has SHAP package installed. Here, DALEX package is used as a wrapper for SHAP. 
+Currently to apply SHAP in  R, one has to access a Python environment (through reticulate package) that has SHAP package installed. Here, DALEX package is used as a wrapper for SHAP. Alternatively a work in progress version of a pure R implementation is available - shapr package v0.2.0 .
 
 For the full code producing graphs below go to: scripts/Prep_SHAP_Graphs.R, where you will find a wrapper for the original plotting function, to allow for selecting only the most significant variables. It will prove helpful in case the models use a large number of variables and/or including OHE.
 
@@ -356,8 +355,6 @@ Individual SHAP value plots for observations:
 * an instance with 0 claims and very high error
 * An instance with 2 claims 
 
-\newpage
-
 For this observation ClaimNb = 1, we can see (as in most cases) that the BonusMalus variable along with vehicle age and brand/gas type have the most impact on the final prediction.
 
 ![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
@@ -391,10 +388,9 @@ Individual SHAP value plots for observations:
 
 \newpage
 #### GLM
-Individual SHAP value plots for observations:
-* with 1 claim and low error for NN;
-* an instance with 0 claims and very high error
-* An instance with 2 claims 
+For the GLM the contributions are going to be proportional directly to the obtained regression parameters, so SHAP plots here are not going to reveal anything that has not been implemented in the model by design.
+
+To Do.
 
 ![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
 
@@ -645,6 +641,11 @@ ExposureWeightedPoissonDevianceLoss = function(predicted,
   
   return(output)
 }
+
+```
+
+
+```{r, echo=FALSE}
 
 data.frame(predicted = 0:50,
            actual = 20) %>% 
