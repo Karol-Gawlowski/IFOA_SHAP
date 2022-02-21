@@ -110,6 +110,7 @@ sample_TTS = sample(x = 1:nrow(data_input),size = round(0.85 * nrow(data_input))
 
 ```
 
+\newpage
 
 ### 1.4 EDA
 
@@ -133,12 +134,14 @@ data_input %>%
 ```
 
 
+\newpage
 
 ## 2. models - fitting, output comparison
-In this section we build the three models (NN, XGB, GLM) and assess their performance. The objects holding the models are pulled from the Prep_RMD folder for convenience. The code used to generate them however is supplied below in each respective section. \
+In this section we build the three models (NN, XGB, GLM) and assess their performance. 
 
-We examine the models' outputs using a hold out test dataset and applying a custom model_evalulation function. It lets us view: the obtained MSE or Poisson loss; prediction statistics grouped by the actual claim number and raw predictions. model_evalulation is standardized to accept all three of the models considered in the exercise. Further details alNong with the source code can be found in section 4.1 \
+We examine the models' outputs using a hold out test dataset and applying a custom model_evalulation function. It lets us view: the obtained MSE or Poisson loss; prediction statistics grouped by the actual claim number and raw predictions. model_evalulation is standardized to accept all three of the models considered in the exercise. Further details along with the source code can be found in section 4.1 \
 
+Note:
 Poisson deviance loss is not symmetrical around the actual value we compare the prediction against. It puts more emphasis on differentiating between zero and non-zero claims instances than say observations with 1 and 2 claims (see 4. Additional Information). 
 
 
@@ -203,6 +206,9 @@ knitr::kable(eval_list$Neural_Net$Evaluation)
 knitr::kable(eval_list$Neural_Net$AvE)
 
 ```
+
+
+\newpage
 
 ### 2.2 XGB
 
@@ -269,6 +275,8 @@ if(FALSE){
 
 ```
 
+\newpage
+
 ### 2.3 GLM
 
 #### Model fitting
@@ -317,6 +325,7 @@ knitr::kable(eval_list$GLM$AvE)
 ```
 
 \newpage
+
 ## 3. XAI
 
 Note that the current implementation of SHAP is insensitive to One-Hot Encoding, meaning that explanation of an instance might contain a non-zero contribution for both VehGas=Diesel AND VehGas!=Regular at the same time. This is caused by the lack of interface in the SHAP function to indicate the range of OHE variables. This and other issues will be fixed in my implementation of Kernel-SHAP, purely in R - to be published soon. 
@@ -356,6 +365,8 @@ if(FALSE){
 
 ```
 
+\newpage
+
 ### 3.2 Individual SHAP
 
 
@@ -365,19 +376,25 @@ Individual SHAP value plots for observations:
 * an instance with 0 claims and very high error
 * An instance with 2 claims 
 
+\newpage
+
 For this observation ClaimNb = 1, we can see (as in most cases) that the BonusMalus variable along with vehicle age and brand/gas type have the most impact on the final prediction.
 
-![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
 
+\newpage
 
 This instance, in reality has ClaimNb of 0 and Networks prediction for it, has the highest error from all observations with actual ClaimNb=1. Interestingly, if it wasn't for the BonusMalus value in case of this instance, the model could have output a much lower prediction. This could be confirmed using an ICE (Individual Conditional Expectation) plot for this observation.  
 
-![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png)
+
+\newpage
 
 In case of this observation, the actual number of claims=2, and here again BonusMalus plays a siginficant role in the final prediction.
 
-![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
 
+\newpage
 
 #### XGB
 Individual SHAP value plots for observations:
@@ -385,23 +402,25 @@ Individual SHAP value plots for observations:
 * an instance with 0 claims and very high error
 * An instance with 2 claims 
 
-![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
 
-![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png)
 
-![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
 
+
+\newpage
 #### GLM
 Individual SHAP value plots for observations:
 * with 1 claim and low error for NN;
 * an instance with 0 claims and very high error
 * An instance with 2 claims 
 
-![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_1_plot.png)
 
-![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png)
 
-![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png){width = 75%}
+![Individual SHAP](graphs/SHAP_Neural_Net_3_plot.png)
 
 
 
