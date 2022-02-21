@@ -1,0 +1,200 @@
+library(tidyverse)
+library(caret) # one hot encoding
+library(DALEX) # largest standalone XAI library I know
+library(shapper) #extension to DALEX, essentially an API for py SHAP
+library(reticulate)
+
+seed=2
+set.seed(seed)
+
+library(tensorflow)
+library(keras)
+
+use_condaenv(condaenv = "TEST_ENV2",required = T) # 
+set_random_seed(seed, disable_gpu = FALSE)
+py_module_available("tensorflow")
+is_keras_available()
+
+py_config()
+
+library(xgboost)
+
+# object to store results
+eval_list = list()
+
+# upload, transform and correct the data
+data_input=read.csv2("data/freMTPL2freq.csv",sep = ",") %>% 
+  as_tibble() %>%
+  mutate(VehPower  = factor(VehPower, order = TRUE,levels = 4:15),
+         across(c(Area,Region,VehBrand,VehGas),factor)) %>%
+  rowwise() %>% 
+  mutate(ClaimNb = as.integer(min(ClaimNb,4)),
+         VehAge = as.integer(min(VehAge,20)),
+         DrivAge = as.integer(min(DrivAge,90)),
+         Exposure = as.numeric(min(Exposure,1)), 
+         Density = log(Density)) %>% 
+  ungroup() #%>% 
+# mutate(ClaimNb = ClaimNb/Exposure) # not in Wutrich?
+
+# remove ID's
+data = data_input %>% select(-c(IDpol,Exposure))
+
+# # save min and max of numerical columns
+# minmax = data.frame(max = apply(data %>% select_if(Negate(is.factor)),2,max),
+#                     min = apply(data %>% select_if(Negate(is.factor)),2,min)) %>% t() %>%  as.data.frame()
+
+# train/test split
+sample_TTS = sample(x = 1:nrow(data),size = round(0.85 * nrow(data)),replace = FALSE)
+
+train = data[sample_TTS,] %>% as.data.frame() #%>% as.matrix()
+test = data[-sample_TTS,] %>% as.data.frame() #%>% as.matrix()
+
+# Normalization of numeric variables (maybe there is a cleaner way using mutate_if)
+data_prep = function(data){
+  
+  Normalized = apply(data %>% select(-ClaimNb) %>% select_if(Negate(is.factor)), 
+                     2, 
+                     FUN = function(x){return((x-min(x))/(max(x)-min(x)))}) %>% 
+    as_tibble()
+  
+  data = data %>% select_if(is.factor) %>% cbind(Normalized)
+  
+  data$VehPower = factor(data$VehPower, order = FALSE)
+  
+  # OHE of factor variables
+  OHE = dummyVars("~.", data = data %>% select_if(is.factor)) %>% 
+    predict(newdata = data %>% select_if(is.factor)) %>% 
+    as_tibble()
+  
+  data = data %>% select_if(Negate(is.factor)) %>% cbind(OHE) %>% as_tibble()
+  
+  return(data)
+}
+
+# data prep separately for train and test
+train = data_prep(train)
+test = data_prep(test)
+
+# Loss function for model comparison
+PoissonLoss = function(predicted,actual){
+  poiss  = (1/length(predicted))*sum(predicted - actual*log(predicted))
+  return(poiss)
+}
+
+# Loss function for model comparison
+PoissonDevianceLoss = function(predicted,actual){
+  nonzero = sum(actual[actual>0]*log(actual[actual>0] / predicted[actual>0]) - (actual[actual>0] - predicted[actual>0]))
+  zero = sum(0 - (0 - predicted[actual==0]))
+  poiss = 2 * (nonzero + zero)
+  return(poiss)
+}
+
+# utility function for analysing model performance
+model_evalulation = function(model,
+                             data = test,
+                             type = "NN",
+                             ClaimNBadj = FALSE){
+  if (type=="NN"){
+    
+    if( ClaimNBadj==TRUE){
+      
+      # rescaled Predictions 
+      Predictions = data.frame(Predicted = (model %>% predict(data %>% select(-ClaimNb) %>% as.matrix()) %>% - 1),
+                               Actual = data$ClaimNb) 
+    }else{
+      
+      Predictions = data.frame(Predicted = (model %>% predict(data %>% select(-ClaimNb) %>% as.matrix())),
+                               Actual = data$ClaimNb) 
+    }
+    
+  }else if(type=="GLM"){
+    
+    Predictions = data.frame(Predicted = predict(model,newdata = data %>% select(-ClaimNb,-Exposure,-IDpol),type="response"), 
+                             Actual = data$ClaimNb)
+    
+  }else if(type == "XGB"){
+    
+    Predictions = data.frame(Predicted = predict(model,newdata = data %>% select(-ClaimNb) %>% as.matrix()),
+                             Actual = data$ClaimNb)
+  }
+  
+  Evaluation = data.frame(
+    absolute_error = mean(abs(as.matrix(Predictions$Predicted - data$ClaimNb))),
+    mean_squared_error = mean(as.matrix((Predictions$Predicted - data$ClaimNb)^2)),
+    Poisson_Loss = PoissonLoss(Predictions$Predicted,data$ClaimNb),
+    Poisson_Deviance_Loss = PoissonDevianceLoss(Predictions$Predicted,data$ClaimNb)
+  )
+  
+  
+  AvE = Predictions %>% mutate(Actual = as.factor(Actual)) %>% 
+    group_by(Actual) %>% 
+    summarise(count = n(),
+              mean_pred = mean(Predicted),
+              sd_pred = sd(Predicted),
+              min = min(Predicted),
+              max = max(Predicted),
+              Q1 = quantile(Predicted,probs = 0.25),
+              Q2 = quantile(Predicted,probs = 0.5),
+              Q3 = quantile(Predicted,probs = 0.75),
+              IQR = (Q3-Q1)/Q2,
+              Negative_Pred = sum(Predicted<0))
+  
+  
+  Sorted_by_MSE = data %>% mutate(Predictions = Predictions$Predicted,
+                                  SquaredError = (Predictions - ClaimNb)^2) %>% arrange(-SquaredError)
+  
+  return(list(Evaluation = Evaluation,
+              Predictions = Predictions,
+              AvE = AvE,
+              Sorted_by_MSE = Sorted_by_MSE))
+}
+
+# for DALEX and SHAP explainer objects
+predict_wrapper=function(model,new_data){
+  return(model %>% predict(new_data %>% as.matrix()))
+}
+
+predict_wrapper_GLM=function(model,new_data){
+  return(predict(model,newdata = new_data,type="response"))
+}
+
+
+
+# Customized and corrected SHAP plot
+CustomSHAPplot=function(dalex_output,
+                        epsilon = 0.007){
+  
+  colnames(dalex_output) = str_replace_all(colnames(dalex_output),pattern = "_",replacement = "")
+  
+  dalex_output = dalex_output %>% as_tibble()
+  
+  avg_pred = dalex_output$yhatmean
+  total_pred = dalex_output$yhat
+  other_pred = sum(dalex_output$attribution[abs(dalex_output$attribution)<=epsilon])
+  
+  plot_data = rbind(data.frame(values = c(avg_pred[1],other_pred),
+                               labels = c("Mean Prediction","Other")),
+                    dalex_output %>% 
+                      as_tibble() %>% 
+                      filter(abs(attribution) > epsilon) %>% 
+                      mutate(attribution = attribution) %>%
+                      transmute(values = attribution,
+                                labels = vname) %>% 
+                      arrange(abs(values))) %>% 
+    mutate(values = round(values,3))
+  
+  plt = plot_data %>% 
+    waterfall(fill_by_sign = TRUE,
+              calc_total = TRUE,
+              total_axis_text = "Final Prediction")+
+    coord_flip()+
+    ggtitle("SHAP plot")+
+    xlab("SHAP contributions")+
+    ylab("Features")+
+    theme_light()+
+    theme(text=element_text(family="serif"),
+          legend.justification = c("right", "top"))
+  
+  return(plt)
+}
+
