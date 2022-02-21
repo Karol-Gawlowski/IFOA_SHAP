@@ -27,16 +27,16 @@ explainer$Neural_Net = explain(
 
 # An instance with 1 claim and very low error
 SHAP$Neural_Net_1 = shap(explainer$Neural_Net, 
-                       new_observation = test[678,],
-                       method = "KernelSHAP"
+                         new_observation = test[678,],
+                         method = "KernelSHAP"
 )
 
 SHAP$Neural_Net_1_plot = CustomSHAPplot(dalex_output = SHAP$Neural_Net_1)
 
 # An instance with 0 claims and very high error
 SHAP$Neural_Net_2 =  shap(explainer$Neural_Net, 
-                                           new_observation = test[12892,],
-                                           method = "KernelSHAP"
+                          new_observation = test[12892,],
+                          method = "KernelSHAP"
 )
 
 SHAP$Neural_Net_2_plot = CustomSHAPplot(dalex_output = SHAP$Neural_Net_2)

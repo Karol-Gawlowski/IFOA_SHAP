@@ -14,7 +14,6 @@ source("scripts/init.R")
 
 # Load models and objects
 Neural_Net = load_model_tf("models/Neural_Net")
-# load("models/GLM")
 load("models/eval_list.rda")
 load("models/EDA.rda")
 
@@ -137,12 +136,12 @@ data_input %>%
 \newpage
 
 ## 2. models - fitting, output comparison
-In this section we build the three models (NN, XGB, GLM) and assess their performance. 
+In this section we build three models - a Neural Network, Gradient Boosted Trees (XGBoost), and a Poisson GLM. 
 
-We examine the models' outputs using a hold out test dataset and applying a custom model_evalulation function. It lets us view: the obtained MSE or Poisson loss; prediction statistics grouped by the actual claim number and raw predictions. model_evalulation is standardized to accept all three of the models considered in the exercise. Further details along with the source code can be found in section 4.1 \
+We examine the models' outputs using a hold out test dataset (15% of available observations) and applying a model_evalulation function for further statistics. It lets us view: the obtained loss (MSE, MAE, Poisson Deviance); prediction statistics grouped by the actual claim number and raw predictions. Further details on model_evaluation function along with the source code can be found in section 4.1 \
 
 Note:
-Poisson deviance loss is not symmetrical around the actual value we compare the prediction against. It puts more emphasis on differentiating between zero and non-zero claims instances than say observations with 1 and 2 claims (see 4. Additional Information). 
+Poisson deviance loss is not symmetrical around the actual value we compare the prediction against (in contrast to e.g. MSE and MAE). It puts more emphasis on differentiating between zero and non-zero claim instances than say observations with 1 and 2 claims (see 4.4 for additional information). 
 
 
 ### 2.1 NN
@@ -191,28 +190,11 @@ summary(Neural_Net)
 
 ```
 
-#### Evaluation
-
-```{r}
-
-knitr::kable(eval_list$Neural_Net$Evaluation)
-
-```
-
-#### Actual vs Expected
-
-```{r}
-
-knitr::kable(eval_list$Neural_Net$AvE)
-
-```
-
 
 \newpage
 
 ### 2.2 XGB
-
-#### text
+To be done
 
 ```{r}
 # notrun
@@ -258,28 +240,9 @@ if(FALSE){
 
 ```
 
-
-#### Evaluation
-
-```{r}
-
-# eval_list$xgb5$Evaluation
-
-```
-
-#### Actual vs Expected
-
-```{r}
-
-# eval_list$xgb5$AvE
-
-```
-
 \newpage
 
 ### 2.3 GLM
-
-#### Model fitting
 
 ```{r, message=FALSE}
 
@@ -290,38 +253,55 @@ if(TRUE){
             weights = Exposure,
             data = data_input[sample_TTS,] %>% select(-IDpol))  %>% suppressWarnings()
   
-  # eval_list$GLM = model_evalulation(GLM,
-  #                                   data_input[-sample_TTS,],
-  #                                   type = "GLM")
 }
 
 GLM
 
 ```
 
-#### Evaluation
-
-```{r}
-
-knitr::kable(eval_list$GLM$Evaluation)
-
-```
-
-#### Actual vs Expected
-
-```{r}
-
-knitr::kable(eval_list$GLM$AvE)
-
-```
-
 
 ### 2.4 Model comparison
 
+#### 2.4.1 Loss Metrics
+
+Neural Network
+
 ```{r}
+eval_list$Neural_Net$Evaluation
+```
 
-# NULL
+XGB
 
+```{r}
+# eval_list$XGB$Evaluation
+```
+
+GLM
+
+```{r}
+eval_list$GLM$Evaluation
+```
+
+#### 2.4.2 Broader summary statistics
+
+As an alternative to comparing the loss metrics, we can assess the models performance using summary statistics grouped by the actual claim number. It can be noted that the average predictions for the Network are higher than for the GLM for policies with ClaimNb>0 and lower for ClamNb=0 which would suggest a better fit. Furthermore, the 
+
+Neural Network
+
+```{r}
+eval_list$Neural_Net$AvE %>% select(-Negative_Pred,-IQR) %>% mutate_if(Negate(is.factor),round,digits=3)
+```
+
+XGB
+
+```{r}
+# eval_list$XGB$AvE %>% select(-Negative_Pred,-IQR) %>% mutate_if(Negate(is.factor),round,digits=3)
+```
+
+GLM
+
+```{r}
+eval_list$GLM$AvE %>% select(-Negative_Pred,-IQR) %>% mutate_if(Negate(is.factor),round,digits=3)
 ```
 
 \newpage
@@ -384,7 +364,7 @@ For this observation ClaimNb = 1, we can see (as in most cases) that the BonusMa
 
 \newpage
 
-This instance, in reality has ClaimNb of 0 and Networks prediction for it, has the highest error from all observations with actual ClaimNb=1. Interestingly, if it wasn't for the BonusMalus value in case of this instance, the model could have output a much lower prediction. This could be confirmed using an ICE (Individual Conditional Expectation) plot for this observation.  
+This instance, in reality has ClaimNb of 0 and Networks prediction for it, has the highest error from all observations with actual ClaimNb=0. Interestingly, if it wasn't for the BonusMalus value in case of this instance, the model could have output a much lower prediction. This could be confirmed using an ICE (Individual Conditional Expectation) plot for this observation.  
 
 ![Individual SHAP](graphs/SHAP_Neural_Net_2_plot.png)
 
@@ -447,7 +427,9 @@ list(Evaluation = Evaluation,
 ```{r}
 
 if (FALSE){
-  
+
+
+  # utility function for analysing model performance
   model_evalulation = function(model,
                                data = test,
                                type = "NN",
@@ -479,8 +461,7 @@ if (FALSE){
     Evaluation = data.frame(
       absolute_error = mean(abs(as.matrix(Predictions$Predicted - data$ClaimNb))),
       mean_squared_error = mean(as.matrix((Predictions$Predicted - data$ClaimNb)^2)),
-      Poisson_Loss = PoissonLoss(Predictions$Predicted,data$ClaimNb),
-      Poisson_Deviance_Loss = PoissonDevianceLoss(Predictions$Predicted,data$ClaimNb)
+      ExposureWeightedPoissonDevianceLoss = ExposureWeightedPoissonDevianceLoss(Predictions$Predicted,data$ClaimNb)
     )
     
     
@@ -499,8 +480,7 @@ if (FALSE){
     
     
     Sorted_by_MSE = data %>% mutate(Predictions = Predictions$Predicted,
-                                    SquaredError = (Predictions - ClaimNb)^2) %>% 
-      arrange(-SquaredError)
+                                    SquaredError = (Predictions - ClaimNb)^2) %>% arrange(-SquaredError)
     
     return(list(Evaluation = Evaluation,
                 Predictions = Predictions,
@@ -516,6 +496,8 @@ if (FALSE){
   predict_wrapper_GLM=function(model,new_data){
     return(predict(model,newdata = new_data,type="response"))
   }
+
+
   
 }
 ```
@@ -590,9 +572,12 @@ if (FALSE){
   CustomSHAPplot=function(dalex_output,
                           epsilon = 0.007){
     
-    colnames(dalex_output) = str_replace_all(colnames(dalex_output),
-                                             pattern = "_",
-                                             replacement = "")
+    colnames(dalex_output) = str_replace_all(colnames(dalex_output),pattern = "_",replacement = "")
+    
+    # supply values in names for continuous variables
+    dalex_output$vname[dalex_output$vname=="VehAge"]=paste("VehAge",round(dalex_output$VehAge[1],3),sep=".")
+    dalex_output$vname[dalex_output$vname=="DrivAge"]=paste("DrivAge",round(dalex_output$DrivAge[1],3),sep=".")
+    dalex_output$vname[dalex_output$vname=="BonusMalus"]=paste("BonusMalus",round(dalex_output$BonusMalus[1],3),sep=".")
     
     dalex_output = dalex_output %>% as_tibble()
     
@@ -626,7 +611,6 @@ if (FALSE){
     return(plt)
   }
   
-  
 }
 
 ```
@@ -634,6 +618,33 @@ if (FALSE){
 ### 4.4 Poisson Deviance Loss
 
 ```{r}
+
+ExposureWeightedPoissonDevianceLoss = function(predicted,
+                                               actual,
+                                               exposure=NULL){
+  
+  output = rep(NA,length(actual))
+  
+  if (is.null(exposure)){
+    exposure = rep(1,length(actual))
+  }
+  
+  # actual zero 
+  k = (actual == 0)
+  output[k] = 2*predicted[k]*exposure[k]
+  
+  # actual non zero and predicted non-zero
+  m = (actual != 0 & predicted != 0 )
+  output[m] = 2*actual[m]*(predicted[m]*exposure[m]/actual[m] - 1 - log(predicted[m]*exposure[m]/actual[m]))
+  
+  # actual non-zero and predicted zero
+  n =  (actual != 0 & predicted == 0 )
+  output[n] = 2*actual[n]
+  
+  output = sum(output)
+  
+  return(output)
+}
 
 data.frame(predicted = 0:50,
            actual = 20) %>% 
