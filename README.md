@@ -3,6 +3,10 @@
 
 [IFOA DSWP eXplainable AI](https://ifoadatascienceresearch.github.io/explainable-ai/)
 
+### Intro
+
+This repository is a supplement to the __[All Clear](https://www.theactuary.com/issues/2022/03/march-2022)__ article in The Actuary Magazine. The main aim is to show an application of SHAP (SHAP_markdown.pdf) but I uploaded all supplementary materials for those interested (scripts folder).
+
 ### Aims
 
 Demonstrate concepts behind XAI with a view to myth busting the notion that “Machine learning models are black boxes”
