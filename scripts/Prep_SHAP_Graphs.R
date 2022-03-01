@@ -135,3 +135,49 @@ SHAP$GLM_3 =  shap(explainer$GLM,
 )
 
 SHAP$GLM_3_plot = CustomSHAPplot(dalex_output = SHAP$GLM_3)
+
+
+
+
+
+
+# model level explanation
+storage = model_level_SHAP_wrapper(expl = explainer$Neural_Net,
+                         range=1:2)
+
+model_level_SHAP_wrapper = function(expl,
+                                    range = 1:10,
+                                    data = test){
+  
+  
+  n = ncol(data)
+  k = length(range)
+  
+  for (i in range){
+    
+    if (range[1]==i){
+      
+      output = shap(expl, 
+                    new_observation = data[i,],
+                    method = "KernelSHAP")
+      
+    }else{
+      
+      temp =  shap(expl, 
+                   new_observation = data[i,],
+                   method = "KernelSHAP")
+      
+      output = rbind(output,temp)
+      
+    }
+    
+    
+  }
+  
+  output = data.frame(obsID = rep(1:k,each=n),
+                      output)
+  
+  return(output)
+  
+}
+

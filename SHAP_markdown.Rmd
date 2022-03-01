@@ -403,7 +403,14 @@ In case of this observation, the actual number of claims=2, and here again Bonus
 
 ### 3.2 Model - level SHAP
 
-to be done
+to be done 
+
+placeholder:
+
+
+![Individual SHAP](graphs/SHAP_placeholder.png)
+
+[source](https://github.com/slundberg/shap/issues/553)
 
 \newpage
 ## 4. Additional Information
